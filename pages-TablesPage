@@ -1,11 +1,43 @@
 <style>
-  :root {
+:root {
     --primary-color: #667eea;
     --sidebar-width: 320px;
+    --sidebar-collapsed-width: 40px; /* 收起后的宽度 */
     --bg-gray: #f0f2f5;
     --danger-color: #ef4444;
   }
 
+  /* 侧边栏收起时的类 */
+  .fixed-sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+    overflow: hidden;
+  }
+  .fixed-sidebar.collapsed .sidebar-section {
+    display: none; /* 收起时隐藏所有内容 */
+  }
+  .content-area.expanded {
+    margin-right: var(--sidebar-collapsed-width);
+  }
+
+  /* 折叠按钮样式 */
+  .toggle-sidebar-btn {
+    position: absolute;
+    left: -15px;
+    top: 20px;
+    width: 30px;
+    height: 30px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 101;
+    font-size: 12px;
+  }
+  
   body { margin: 0; padding: 0; background: var(--bg-gray); font-family: sans-serif; }
 
   /* 布局结构 */
@@ -76,9 +108,11 @@
     <div class="cards-grid" id="cardsContainer"></div>
   </div>
 
-  <div class="fixed-sidebar">
-    <div class="sidebar-section">
-      <h3>🔍 全局关联搜索</h3>
+<div class="fixed-sidebar" id="sidebar">
+  <div class="toggle-sidebar-btn" onclick="window.toggleSidebar()" id="toggleBtn">▶</div>
+  
+  <div class="sidebar-section">
+    <h3>🔍 全局关联搜索</h3>
       <input type="text" id="tableSearchInput" class="search-input" placeholder="姓名/电话/状态(如:已消耗)..." onkeyup="window.filterTableContent()">
     </div>
 
@@ -120,6 +154,23 @@
 <script>
   let tableData = [];
   let visibleRows = [];
+
+  window.toggleSidebar = function() {
+    const sidebar = document.getElementById('sidebar');
+    const content = document.querySelector('.content-area');
+    const btn = document.getElementById('toggleBtn');
+    
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    content.classList.toggle('expanded');
+    
+    // 改变按钮文字和方向
+    btn.innerText = isCollapsed ? '◀' : '▶';
+    
+    // 如果是展开，尝试刷新一次布局
+    if (!isCollapsed) {
+       window.filterTableContent();
+    }
+  };
 
   // 1. 初始化渲染：按数据原本顺序倒序（即最新录入在最前）
   window.renderTableContent = function(data) {
