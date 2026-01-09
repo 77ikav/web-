@@ -42,6 +42,7 @@ function getPageContent(pageId) {
 
 /**
  * 获取 VT 工作表的客户数据
+ * 修复：现在会返回 object 数组并包含 originalIndex 以供删除/更新定位
  */
 function getCustomerData() {
   try {
@@ -56,22 +57,26 @@ function getCustomerData() {
     const data = sheet.getDataRange().getValues();
     Logger.log('getCustomerData 行数: ' + data.length);
 
-    // 构建可序列化的预览（避免复杂类型导致前端接收为 null）
-    const rows = data.slice(1).map(row => row.map(cell => {
-      if (cell === null || typeof cell === 'undefined') return '';
-      if (Object.prototype.toString.call(cell) === '[object Date]') return Utilities.formatDate(cell, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-      return String(cell);
-    }));
+    const headers = (data.length > 0) ? data[0].map(h => h === null ? '' : String(h)) : [];
 
-    const headers = (data.length>0) ? data[0].map(h => h===null? '': String(h)) : [];
+    // 修复：返回结构化的对象数组，确保前端 TablePage 的 renderTableContent 能正确获取索引
+    const rows = data.slice(1).map((row, index) => {
+      return {
+        originalIndex: index, // 关键：保存这一行在原始数组中的位置 (0对应第2行)
+        date: row[0] ? (Object.prototype.toString.call(row[0]) === '[object Date]' ? Utilities.formatDate(row[0], Session.getScriptTimeZone(), 'M月d日') : String(row[0])) : "",
+        name: String(row[1] || ""),
+        age: String(row[2] || ""),
+        phone: String(row[3] || ""),
+        address: String(row[4] || ""),
+        recommender: String(row[5] || ""),
+        remarks: String(row[6] || ""),
+        bankCard: String(row[7] || ""),
+        verifiedCard: String(row[8] || ""),
+        usedCard: String(row[9] || "")
+      };
+    });
 
-    // 返回完整信息包括预览（前5行）以便调试
-    return {
-      sheetName: sheet.getName(),
-      headers: headers,
-      rowsCount: rows.length,
-      previewRows: rows.slice(0,5),
-    };
+    return rows; // 直接返回数组，适配 TablesPage 的 SuccessHandler(data)
   } catch (e) {
     Logger.log('getCustomerData 错误: ' + e.toString());
     return { error: e.toString() };
@@ -287,8 +292,26 @@ function addNewCustomer(customer) {
 }
 
 /**
+ * 核心新增：删除客户数据函数
+ */
+function deleteCustomerRow(rowIndex) {
+  try {
+    const SPREADSHEET_ID = '1ibTwstvYB2x2_uLL3_wH6sdBvaH5ixTDzPLJKmxAmv0';
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = spreadsheet.getSheetByName('VT');
+    if (!sheet) return { ok: false, error: '找不到 VT 工作表' };
+    
+    const actualRow = rowIndex + 2;
+    sheet.deleteRow(actualRow);
+    return { ok: true };
+  } catch (e) {
+    Logger.log('deleteCustomerRow 错误: ' + e.toString());
+    return { ok: false, error: e.toString() };
+  }
+}
+
+/**
  * 从文本解析客户信息并添加到表格
- * 修复：1. 日期显示为 M月d日 2. 默认推荐人设为电销
  */
 function fillTable(text) {
   try {
@@ -310,7 +333,7 @@ function fillTable(text) {
           case '推荐人': data.recommender = value; break;
           case '目前居住地':
           case '家庭住址': data.address = value; break;
-          case '家庭情况简单描述': data.remarks = value; break; // 添加这一行
+          case '家庭情况简单描述': data.remarks = value; break;
         }
       }
     });
@@ -331,36 +354,25 @@ function fillTable(text) {
     const newRow = lastRow + 1;
     
     const today = new Date();
-    // 修复点 1：格式化为“1月9日”
     const dateStr = Utilities.formatDate(today, Session.getScriptTimeZone(), 'M月d日');
     
-    // 修复点 2：推荐人默认处理
     const finalRecommender = (data.recommender && data.recommender.trim() !== "") ? data.recommender : "电销";
-    data.recommender = finalRecommender; // 更新返回给前端的对象
-    data.date = dateStr; // 更新返回给前端的对象
+    data.recommender = finalRecommender;
+    data.date = dateStr;
 
     const vals = [[
-      dateStr, // 存入单元格的格式变为“1月9日”
+      dateStr,
       data.name || '',
       data.age || '',
       data.phone || '',
       data.address || '',
       finalRecommender,
-      data.remarks || '',  // 修改这里，由原来的 '' 变为 data.remarks
-      '',  // 银行卡
-      '',  // 已验卡
-      ''   // 已消耗
+      data.remarks || '',
+      '', '', ''
     ]];
     
     sheet.getRange(newRow, 1, 1, 10).setValues(vals);
-    Logger.log('fillTable: 已添加新客户到第 ' + newRow + ' 行');
-    
-    return { 
-      ok: true, 
-      row: newRow,
-      data: data,
-      message: '客户信息已填充' 
-    };
+    return { ok: true, row: newRow, data: data, message: '客户信息已填充' };
   } catch (e) {
     Logger.log('fillTable 错误: ' + e.toString());
     return { ok: false, error: e.toString() };
