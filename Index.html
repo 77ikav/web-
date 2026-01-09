@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f0f2f5;
+      overflow: hidden;
+    }
+    
+    /* 主容器 */
+    .app-container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+    }
+    
+    /* 顶部栏 */
+    .navbar {
+      height: 60px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 100;
+    }
+    
+    .menu-toggle-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 18px;
+      margin-right: 15px;
+      transition: background 0.3s;
+    }
+
+    .menu-toggle-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .navbar-logo {
+      font-size: 24px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    
+    .navbar-title {
+      font-size: 18px;
+      font-weight: 500;
+      border-left: 2px solid rgba(255,255,255,0.5);
+      padding-left: 20px;
+    }
+    
+    .navbar-right {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-right: 15px;
+      border-right: 1px solid rgba(255,255,255,0.3);
+    }
+    
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    /* 主体布局 */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    /* 左侧菜单 */
+    .sidebar {
+      width: 260px;
+      background: #1f2937;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+      z-index: 50;
+      transition: margin-left 0.3s ease;
+    }
+
+    .sidebar.collapsed {
+      margin-left: -260px;
+    }
+    
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding-top: 20px;
+    }
+    
+    .menu-item {
+      padding: 12px 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #d1d5db;
+      transition: all 0.3s;
+      border-left: 3px solid transparent;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .menu-item:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+    }
+    
+    .menu-item.active {
+      background: rgba(102, 126, 234, 0.2);
+      color: #fff;
+      border-left-color: #667eea;
+    }
+    
+    .menu-icon {
+      font-size: 18px;
+      min-width: 24px;
+      text-align: center;
+    }
+    
+    .menu-label {
+      flex: 1;
+    }
+    
+    /* 内容区 */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #f0f2f5;
+    }
+    
+    .content-header {
+      padding: 20px 30px;
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .content-header h1 {
+      font-size: 24px;
+      color: #1f2937;
+      margin: 0;
+      font-weight: 600;
+    }
+    
+    .content-header p {
+      font-size: 13px;
+      color: #6b7280;
+      margin: 5px 0 0 0;
+    }
+    
+    .content-body {
+      flex: 1;
+      overflow: auto;
+      padding: 20px 30px;
+    }
+    
+    .page {
+      display: none;
+    }
+    
+    .page.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    /* 加载状态 */
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6b7280;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 15px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* 滚动条 */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 顶部栏 -->
+    <nav class="navbar">
+      <div class="navbar-left">
+        <button class="menu-toggle-btn" onclick="toggleSidebar()" title="切换菜单">☰</button>
+        <div class="navbar-logo">📊</div>
+        <div class="navbar-title" id="navTitle">关系链管理系统</div>
+      </div>
+      <div class="navbar-right">
+        <div class="user-info">
+          <div class="user-avatar">👤</div>
+          <span id="userName">加载中...</span>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- 主体 -->
+    <div class="app-body">
+      <!-- 左侧菜单 -->
+      <div class="sidebar">
+        <div class="sidebar-content" id="sidebarMenu">
+          <!-- 菜单项会动态生成 -->
+        </div>
+      </div>
+      
+      <!-- 内容区 -->
+      <div class="main-content">
+        <div class="content-header" id="contentHeader">
+          <h1 id="pageTitle">加载中...</h1>
+          <p id="pageDesc"></p>
+        </div>
+        <div class="content-body" id="contentBody">
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 菜单配置
+    const menus = [
+      { id: 'tables', label: '客户列表', icon: '📋', title: '客户管理', desc: '查看和编辑所有客户信息' },
+      { id: 'relationship', label: '关系链', icon: '🔗', title: '关系链视图', desc: '查看客户推荐关系链' },
+      { id: 'statistics', label: '数据统计', icon: '📈', title: '统计分析', desc: '客户数据统计分析' },
+      { id: 'settings', label: '设置', icon: '⚙️', title: '系统设置', desc: '系统配置选项' }
+    ];
+    
+    let currentPage = 'tables';
+    let allData = [];
+    
+    // 初始化
+    function init() {
+      renderMenus();
+      loadPage('tables');
+      loadCurrentUser();
+      // 默认折叠左侧菜单
+      toggleSidebar();
+    }
+    
+    // 渲染菜单
+    function renderMenus() {
+      const menuContainer = document.getElementById('sidebarMenu');
+      menuContainer.innerHTML = menus.map(menu => `
+        <div class="menu-item ${menu.id === currentPage ? 'active' : ''}" onclick="switchPage('${menu.id}')">
+          <span class="menu-icon">${menu.icon}</span>
+          <span class="menu-label">${menu.label}</span>
+        </div>
+      `).join('');
+    }
+    
+    // 切换页面
+    function switchPage(pageId) {
+      currentPage = pageId;
+      renderMenus();
+      loadPage(pageId);
+    }
+    
+    // 切换左侧菜单折叠/展开
+    function toggleSidebar() {
+      const sidebar = document.querySelector('.sidebar');
+      sidebar.classList.toggle('collapsed');
+    }
+    
+    // 加载页面
+    function loadPage(pageId) {
+      const menu = menus.find(m => m.id === pageId);
+      if (!menu) return;
+      
+      document.getElementById('navTitle').textContent = menu.title;
+      document.getElementById('pageTitle').textContent = menu.title;
+      document.getElementById('pageDesc').textContent = menu.desc;
+      
+      const contentBody = document.getElementById('contentBody');
+      contentBody.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>加载中...</p></div>';
+      
+      // 根据页面 ID 加载对应内容
+      google.script.run
+        .withSuccessHandler(html => {
+          // 将服务器返回的 HTML 插入到内容区
+          contentBody.innerHTML = html;
+
+          // 执行插入 HTML 中的内联脚本（浏览器不会自动执行通过 innerHTML 插入的 script）
+          const scripts = Array.from(contentBody.querySelectorAll('script'));
+          scripts.forEach(oldScript => {
+            const newScript = document.createElement('script');
+            if (oldScript.src) {
+              newScript.src = oldScript.src;
+            } else {
+              newScript.textContent = oldScript.textContent || oldScript.innerHTML;
+            }
+            document.body.appendChild(newScript);
+            // 移除原始 script，避免重复
+            oldScript.parentNode && oldScript.parentNode.removeChild(oldScript);
+          });
+
+          // 页面加载后执行初始化回调：等待页面内联脚本注册全局函数后再调用
+          function waitForGlobal(fnName, cb, timeout = 3000) {
+            const start = Date.now();
+            (function poll() {
+              if (window[fnName]) return cb();
+              if (Date.now() - start > timeout) return cb(new Error('timeout'));
+              setTimeout(poll, 100);
+            })();
+          }
+
+          if (pageId === 'tables') {
+            waitForGlobal('renderTableContent', (err) => {
+              if (err) console.warn('renderTableContent 未在页面中注册，仍将尝试初始化');
+              initTablesPage();
+            });
+          } else if (pageId === 'relationship') {
+            waitForGlobal('renderRelationshipChainContent', (err) => {
+              if (err) console.warn('renderRelationshipChainContent 未在页面中注册，仍将尝试初始化');
+              initRelationshipPage();
+            });
+          }
+        })
+        .withFailureHandler(err => {
+          contentBody.innerHTML = '<div style="padding:20px; color:#dc2626;">加载失败: ' + (err.message || err) + '</div>';
+        })
+        .getPageContent(pageId);
+    }
+    
+    // 退出
+    function logout() {
+      if (confirm('确定要退出吗？')) {
+        google.script.host.close();
+      }
+    }
+    
+    // 获取并显示当前用户邮箱
+    function loadCurrentUser() {
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result.ok && result.email) {
+            document.getElementById('userName').textContent = result.email;
+          } else {
+            document.getElementById('userName').textContent = '用户';
+          }
+        })
+        .withFailureHandler(err => {
+          document.getElementById('userName').textContent = '用户';
+        })
+        .getCurrentUserEmail();
+    }
+    
+    // 页面初始化函数（在加载对应页面 HTML 后执行）
+    function initTablesPage() {
+      // 表格页面逻辑
+      loadCustomerData();
+    }
+    
+    function initRelationshipPage() {
+      // 关系链页面逻辑
+      loadRelationshipChain();
+    }
+    
+    // 加载客户数据（供表格页面使用）
+    function loadCustomerData() {
+      google.script.run
+        .withSuccessHandler(data => {
+          if (data && data.error) {
+            document.getElementById('contentBody').innerHTML = '<div style="padding:20px; color:#dc2626;">错误: ' + data.error + '</div>';
+            return;
+          }
+          allData = data.customers || [];
+          // 如果片段渲染函数尚未注册，轮询等待短时间再调用，避免丢失数据
+          (function deliverToFragment(payload, timeout = 3000) {
+            const start = Date.now();
+            (function poll() {
+              if (window.renderTableContent) {
+                try { window.renderTableContent(payload); } catch (e) { console.warn('调用 renderTableContent 出错', e); }
+                return;
+              }
+              if (Date.now() - start > timeout) {
+                // 回退到全局渲染逻辑
+                try { renderTable(); } catch (e) { console.warn('renderTable 调用失败', e); }
+                return;
+              }
+              setTimeout(poll, 100);
+            })();
+          })(allData);
+        })
+        .withFailureHandler(err => {
+          document.getElementById('contentBody').innerHTML = '<div style="padding:20px; color:#dc2626;">加载失败: ' + (err.message || err) + '</div>';
+        })
+        .getRelationshipChainData();
+    }
+    
+    // 加载关系链数据（供关系链页面使用）
+    function loadRelationshipChain() {
+      google.script.run
+        .withSuccessHandler(data => {
+          if (data && data.error) {
+            document.getElementById('contentBody').innerHTML = '<div style="padding:20px; color:#dc2626;">错误: ' + data.error + '</div>';
+            return;
+          }
+          allData = data.customers || [];
+          // 如果片段渲染函数尚未注册，轮询等待短时间再调用，避免丢失数据
+          (function deliverToFragment(payload, timeout = 3000) {
+            const start = Date.now();
+            (function poll() {
+              if (window.renderRelationshipChainContent) {
+                try { window.renderRelationshipChainContent(payload); } catch (e) { console.warn('调用 renderRelationshipChainContent 出错', e); }
+                return;
+              }
+              if (Date.now() - start > timeout) {
+                // 回退到全局渲染逻辑
+                try { renderRelationshipChain(); } catch (e) { console.warn('renderRelationshipChain 调用失败', e); }
+                return;
+              }
+              setTimeout(poll, 100);
+            })();
+          })(allData);
+        })
+        .withFailureHandler(err => {
+          document.getElementById('contentBody').innerHTML = '<div style="padding:20px; color:#dc2626;">加载失败: ' + (err.message || err) + '</div>';
+        })
+        .getRelationshipChainData();
+    }
+    
+    // 表格渲染（简化版，完整逻辑见下方）
+    function renderTable() {
+      const contentBody = document.getElementById('contentBody');
+      const hasTableFragment = !!document.getElementById('tableBodyMain') || !!document.getElementById('tableContainer');
+
+      if (allData.length === 0) {
+        // 如果表格片段已加载，调用片段的渲染函数让其显示空状态；否则在 contentBody 显示暂无数据
+        if (hasTableFragment && window.renderTableContent) {
+          window.renderTableContent([]);
+        } else {
+          contentBody.innerHTML = '<div style="text-align:center; padding:60px 20px; color:#999;">暂无数据</div>';
+        }
+        return;
+      }
+
+      // 如果表格片段存在且提供渲染接口，则交给片段渲染；否则直接在 contentBody 显示一条提示
+      if (hasTableFragment && window.renderTableContent) {
+        window.renderTableContent(allData);
+      } else {
+        contentBody.innerHTML = '<div style="text-align:center; padding:60px 20px; color:#999;">暂无数据</div>';
+      }
+    }
+    
+    // 关系链渲染
+    function renderRelationshipChain() {
+      const contentBody = document.getElementById('contentBody');
+      const hasRelationshipFragment = !!document.querySelector('.relationship-page') || !!document.getElementById('relationshipContainer');
+
+      if (allData.length === 0) {
+        if (hasRelationshipFragment && window.renderRelationshipChainContent) {
+          window.renderRelationshipChainContent([]);
+        } else {
+          contentBody.innerHTML = '<div style="text-align:center; padding:60px 20px; color:#999;">暂无数据</div>';
+        }
+        return;
+      }
+
+      if (hasRelationshipFragment && window.renderRelationshipChainContent) {
+        window.renderRelationshipChainContent(allData);
+      } else {
+        contentBody.innerHTML = '<div style="text-align:center; padding:60px 20px; color:#999;">暂无数据</div>';
+      }
+    }
+    
+    // 状态提示
+    window.showStatus = function showStatus(message, type) {
+      const statusEl = document.createElement('div');
+      statusEl.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 30px;
+        padding: 12px 20px;
+        border-radius: 4px;
+        z-index: 1000;
+        font-size: 14px;
+        animation: slideIn 0.3s ease-out;
+      `;
+      
+      const colors = {
+        success: '#d1fae5',
+        error: '#fee2e2',
+        info: '#dbeafe'
+      };
+      const textColors = {
+        success: '#065f46',
+        error: '#7f1d1d',
+        info: '#082f49'
+      };
+      
+      statusEl.style.backgroundColor = colors[type] || colors.info;
+      statusEl.style.color = textColors[type] || textColors.info;
+      statusEl.textContent = message;
+      document.body.appendChild(statusEl);
+      
+      setTimeout(() => statusEl.remove(), 3000);
+    }
+
+    // 简易调试面板（右上角），用于显示从服务器返回的调试信息
+    window.showDebugPanel = function showDebugPanel(obj) {
+      let panel = document.getElementById('debugPanel');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'debugPanel';
+        panel.style.cssText = 'position:fixed; right:20px; top:80px; width:320px; max-height:300px; overflow:auto; background:#111827; color:#e5e7eb; padding:12px; border-radius:6px; box-shadow:0 6px 18px rgba(0,0,0,0.2); font-size:12px; z-index:1200;';
+        document.body.appendChild(panel);
+      }
+      panel.innerHTML = '<strong style="display:block; margin-bottom:6px; color:#60a5fa;">调试信息</strong><pre style="white-space:pre-wrap; word-break:break-word; margin:0;">' + JSON.stringify(obj, null, 2) + '</pre>';
+      setTimeout(() => { try { panel.remove(); } catch(e){} }, 15000);
+    }
+    
+    // 初始化
+    init();
+  </script>
+</body>
+</html>
