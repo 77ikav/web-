@@ -1,0 +1,313 @@
+<style>
+  :root {
+    --primary-color: #667eea;
+    --sidebar-width: 320px;
+    --bg-gray: #f0f2f5;
+    --danger-color: #ef4444;
+  }
+
+  body { margin: 0; padding: 0; background: var(--bg-gray); font-family: sans-serif; }
+
+  /* 布局结构 */
+  .main-layout { display: flex; min-height: 100vh; }
+  .content-area { flex: 1; padding: 20px; margin-right: var(--sidebar-width); }
+
+  /* 右侧固定面板 */
+  .fixed-sidebar {
+    width: var(--sidebar-width);
+    position: fixed; right: 0; top: 0; bottom: 0;
+    background: white; border-left: 1px solid #e2e8f0;
+    padding: 20px; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 20px;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.05); z-index: 100;
+  }
+
+  /* 卡片设计 */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .customer-card {
+    background: white; border-radius: 12px; padding: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer;
+    transition: all 0.2s; border: 1px solid transparent;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .customer-card:hover { transform: translateY(-3px); border-color: var(--primary-color); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+
+  /* 状态条 */
+  .status-line { font-size: 12px; padding: 6px 10px; border-radius: 6px; background: #f8fafc; margin-top: 4px; }
+  .status-red { color: #ef4444; background: #fef2f2; border: 1px solid #fee2e2; }
+  .status-green { color: #10b981; background: #f0fdf4; border: 1px solid #dcfce7; }
+  .memo-preview { font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+  /* 侧边栏控件 */
+  .sidebar-section h3 { margin: 0 0 12px 0; font-size: 15px; color: #1e293b; }
+  .search-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+  .parse-textarea { width: 100%; height: 180px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; resize: none; box-sizing: border-box; background: #f8fafc; }
+
+  /* 提示展示区 */
+  .parse-result-hint { font-size: 12px; color: #10b981; margin-top: 8px; display: none; font-weight: bold; text-align: center; }
+  .copy-strip {
+    margin-top: 10px; padding: 10px; background: #f1f5f9; border-radius: 6px;
+    font-size: 12px; color: #475569; cursor: pointer; border: 1px dashed #cbd5e1;
+    word-break: break-all; transition: all 0.2s; display: none;
+  }
+  .copy-strip:hover { background: #e2e8f0; border-color: var(--primary-color); }
+
+  /* 按钮 */
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; width: 100%; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-primary { background: var(--primary-color); color: white; }
+  .btn-secondary { background: #f1f5f9; color: #475569; }
+  .btn-danger { background: #fee2e2; color: var(--danger-color); }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .loading-icon { animation: spin 1s linear infinite; display: none; }
+  .btn.is-loading .loading-icon { display: inline-block; }
+  .btn.is-loading .btn-text { display: none; }
+
+  /* 详情弹窗 */
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+  .detail-modal { background: white; width: 95%; max-width: 800px; border-radius: 16px; max-height: 90vh; display: flex; flex-direction: column; }
+  .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px; }
+  .full-width { grid-column: 1 / -1; }
+
+  @media (max-width: 1024px) { .content-area { margin-right: 0; } .fixed-sidebar { position: static; width: 100%; } .main-layout { flex-direction: column; } }
+</style>
+
+<div class="main-layout">
+  <div class="content-area">
+    <div class="cards-grid" id="cardsContainer"></div>
+  </div>
+
+  <div class="fixed-sidebar">
+    <div class="sidebar-section">
+      <h3>🔍 全局关联搜索</h3>
+      <input type="text" id="tableSearchInput" class="search-input" placeholder="姓名/电话/状态(如:已消耗)..." onkeyup="window.filterTableContent()">
+    </div>
+
+    <div class="sidebar-section">
+      <h3>➕ 文本解析添加</h3>
+      <textarea id="parseInput" class="parse-textarea" placeholder="在此粘贴申请内容..."></textarea>
+      <button id="parseBtn" class="btn btn-primary" style="margin-top:10px;" onclick="window.parseAndFillContent()">
+        <span class="loading-icon">⌛</span>
+        <span class="btn-text">✓ 立即解析并添加</span>
+      </button>
+      <div id="parseRowHint" class="parse-result-hint"></div>
+      <div id="copyStrip" class="copy-strip" title="点击一键复制" onclick="window.copyToClipboard(this.innerText)"></div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top: auto;">
+      <button id="refreshBtn" class="btn btn-secondary" onclick="window.refreshTableContent()">
+        <span class="loading-icon">⌛</span>
+        <span class="btn-text">🔄 刷新全部数据</span>
+      </button>
+      <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-top: 10px;">已按最新录入内容倒排</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+  <div class="detail-modal">
+    <div style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
+      <h2 style="margin:0; font-size: 18px;">客户档案详情</h2>
+      <button onclick="window.closeModal()" style="border:none; background:none; font-size:24px; cursor:pointer;">&times;</button>
+    </div>
+    <div style="overflow-y: auto; flex: 1;">
+      <div class="detail-grid" id="modalContent"></div>
+    </div>
+    <div id="modalFooter" style="padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px;">
+      </div>
+  </div>
+</div>
+
+<script>
+  let tableData = [];
+  let visibleRows = [];
+
+  // 1. 初始化渲染：按数据原本顺序倒序（即最新录入在最前）
+  window.renderTableContent = function(data) {
+    if(!data) return;
+    // 不再根据 Date 排序，直接反转数组显示最新行
+    tableData = data.reverse(); 
+    window.filterTableContent();
+  };
+
+  // 2. 刷新函数
+  window.refreshTableContent = function() {
+    const btn = document.getElementById('refreshBtn');
+    btn.classList.add('is-loading');
+    google.script.run
+      .withSuccessHandler(data => {
+        btn.classList.remove('is-loading');
+        window.renderTableContent(data); 
+      })
+      .withFailureHandler(() => {
+        btn.classList.remove('is-loading');
+        alert("同步失败");
+      })
+      .getCustomerData();
+  };
+
+  // 3. 搜索与状态过滤
+  window.filterTableContent = function() {
+    const kw = document.getElementById('tableSearchInput').value.toLowerCase().trim();
+    if (!kw) {
+      visibleRows = tableData.map((_, i) => i);
+    } else {
+      visibleRows = tableData
+        .map((c, i) => ({c, i}))
+        .filter(item => {
+          const d = item.c;
+          const textMatch = Object.values(d).join(' ').toLowerCase().includes(kw);
+          
+          // 状态快捷搜索
+          let statusMatch = false;
+          if (kw.includes('已消耗') || kw === '消耗') statusMatch = !!d.usedCard;
+          else if (kw.includes('已验卡') || kw === '验卡') statusMatch = !!d.verifiedCard;
+          else if (kw.includes('待处理')) statusMatch = !d.usedCard && !d.verifiedCard;
+          
+          return textMatch || statusMatch;
+        })
+        .map(x => x.i);
+    }
+    renderCards();
+  };
+
+  // 4. 卡片生成
+  function renderCards() {
+    const container = document.getElementById('cardsContainer');
+    container.innerHTML = '';
+    if (visibleRows.length === 0) {
+      container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:50px; color:#94a3b8;">未找到匹配记录</div>';
+      return;
+    }
+    visibleRows.forEach(idx => {
+      const c = tableData[idx];
+      const card = document.createElement('div');
+      card.className = 'customer-card';
+      card.onclick = () => openDetail(idx);
+      
+      let statusHtml = c.usedCard ? `<div class="status-line status-red">🔴 已消耗：${c.usedCard}</div>` :
+                       (c.verifiedCard ? `<div class="status-line status-green">🟢 已验卡：${c.verifiedCard}</div>` : 
+                       `<div class="status-line" style="color:#94a3b8;">⚪ 待处理</div>`);
+
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:start;">
+          <strong style="font-size:16px; color:#1e293b;">${c.name || '未命名'}</strong>
+          <span style="font-size:11px; color:#94a3b8;">${c.date || '-'}</span>
+        </div>
+        <div style="font-size:13px; color:#475569;">
+          <div>📞 ${c.phone || '-'}</div>
+          <div style="margin-top:2px; color:#6366f1; font-size:11px;">👤 ${c.recommender || '电销'}</div>
+        </div>
+        ${statusHtml}
+        <div class="memo-preview">${c.remarks ? '📝 ' + c.remarks : '无备注'}</div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  // 5. 文本解析添加
+  window.parseAndFillContent = function() {
+    const text = document.getElementById('parseInput').value;
+    if(!text.trim()) return;
+    const btn = document.getElementById('parseBtn');
+    btn.classList.add('is-loading');
+
+    google.script.run.withSuccessHandler(res => {
+      btn.classList.remove('is-loading');
+      if(res.ok) {
+        // 格式化复制内容：[姓名]
+        // 直接使用后端传回的已格式化字符串，如果不存在则手动生成一个
+        const dateStr = res.data.date || `${new Date().getMonth() + 1}月${new Date().getDate()}日`;
+        const province = (res.data.address || "无").substring(0, 2);
+        const copyStr = `[${res.data.name}]丨待验证丨${res.data.recommender || '电销'}丨${res.data.age || '无'}-${province}-${dateStr}-${res.data.phone || '无'}`;
+        
+        const strip = document.getElementById('copyStrip');
+        strip.innerText = copyStr;
+        strip.style.display = 'block';
+
+        // 插入本地并刷新
+        tableData.unshift({...res.data, originalIndex: 9999}); // 临时占位，刷新会校正
+        window.filterTableContent();
+        document.getElementById('parseInput').value = '';
+        window.refreshTableContent(); 
+      }
+    }).fillTable(text);
+  };
+
+  // 6. 复制功能（静默提示）
+  window.copyToClipboard = function(text) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+
+    const hint = document.getElementById('parseRowHint');
+    hint.innerText = '✨ 已复制到剪贴板';
+    hint.style.display = 'block';
+    setTimeout(() => { hint.style.display = 'none'; }, 2000);
+  };
+
+  // 7. 详情与删除
+  function openDetail(idx) {
+    const c = tableData[idx];
+    const content = document.getElementById('modalContent');
+    const fields = [
+      {label: '日期', key: 'date'}, {label: '姓名', key: 'name'},
+      {label: '年龄', key: 'age'}, {label: '手机号', key: 'phone'},
+      {label: '地址', key: 'address'}, {label: '推荐人', key: 'recommender'},
+      {label: '已验卡', key: 'verifiedCard'}, {label: '已消卡', key: 'usedCard'},
+      {label: '银行卡', key: 'bankCard', full: true},
+      {label: '备注', key: 'remarks', full: true, area: true}
+    ];
+    content.innerHTML = fields.map(f => `
+      <div style="display:flex; flex-direction:column; gap:5px;" class="${f.full ? 'full-width' : ''}">
+        <label style="font-size:12px; font-weight:600;">${f.label}</label>
+        ${f.area ? `<textarea id="edit_${f.key}" style="height:80px; padding:8px; border:1px solid #ddd;">${c[f.key] || ''}</textarea>` :
+          `<input type="text" id="edit_${f.key}" value="${c[f.key] || ''}" style="padding:8px; border:1px solid #ddd;">`}
+      </div>
+    `).join('');
+
+    document.getElementById('modalFooter').innerHTML = `
+      <button class="btn btn-danger" style="width: auto; padding: 10px;" onclick="window.deleteCustomer(${idx})">🗑️ 删除</button>
+      <button class="btn btn-secondary" style="width: auto; flex: 1;" onclick="window.closeModal()">取消</button>
+      <button id="modalSaveBtn" class="btn btn-primary" style="width: auto; flex: 2;" onclick="saveEdit(${idx})">保存更新</button>
+    `;
+    document.getElementById('detailModal').style.display = 'flex';
+  }
+
+  window.deleteCustomer = function(idx) {
+    const c = tableData[idx];
+    if(!confirm(`确定要删除 [${c.name}] 吗？`)) return;
+    google.script.run.withSuccessHandler(() => {
+      tableData.splice(idx, 1);
+      window.filterTableContent();
+      window.closeModal();
+    }).deleteCustomerRow(c.originalIndex);
+  };
+
+  function saveEdit(idx) {
+    const updated = {
+      date: document.getElementById('edit_date').value,
+      name: document.getElementById('edit_name').value,
+      age: document.getElementById('edit_age').value,
+      phone: document.getElementById('edit_phone').value,
+      address: document.getElementById('edit_address').value,
+      recommender: document.getElementById('edit_recommender').value,
+      remarks: document.getElementById('edit_remarks').value,
+      bankCard: document.getElementById('edit_bankCard').value,
+      verifiedCard: document.getElementById('edit_verifiedCard').value,
+      usedCard: document.getElementById('edit_usedCard').value
+    };
+    google.script.run.withSuccessHandler(res => {
+      if(res.ok) {
+        tableData[idx] = {...updated, originalIndex: tableData[idx].originalIndex};
+        window.renderTableContent(tableData.reverse()); // 恢复显示
+        window.closeModal();
+      }
+    }).updateCustomerData(tableData[idx].originalIndex, updated);
+  }
+
+  window.closeModal = function() { document.getElementById('detailModal').style.display = 'none'; };
+  window.onload = window.refreshTableContent;
+</script>
